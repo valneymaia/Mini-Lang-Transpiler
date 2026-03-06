@@ -2,7 +2,7 @@
 /* isso é um comentári
 
 o
-*//
+*/
 
 
 
@@ -15,8 +15,12 @@ def somar(a: int, b: int): int {
     return a + b;
 }
 
+var x : int = 30; 
+set flag = 10; 
+ 
+
 if (x < y) {
-    print x;
+    print "x";
 } else {
     set x = somar(x, 5);
 }
@@ -24,6 +28,20 @@ if (x < y) {
 while (x > 0) {
     set x = x - 1;
     if (x == 5) {
-        print Metade;
+        print "Metade";
     }
 }
+
+/*Apenas para teste do Analisador semantico*/
+var es: int = 10; 
+var teste: bool = true; 
+var soma: int = 0; 
+
+set soma = es + teste; 
+
+def soma(a: int, a: int): int{
+    var local: int = 0; 
+    set local = soma(a, b); 
+}
+
+set soma = es + local; 
