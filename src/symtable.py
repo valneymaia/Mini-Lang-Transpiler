@@ -2,12 +2,14 @@ class Symbol:
     """
     Estrutura para salvar o nome de uma variável e o tipo
     """
-    def __init__(self, var, type):
+    class Symbol:
+    def __init__(self, var, type, arity=None):
         self.var = var
         self.type = type
-    
+        self.arity = arity
+
     def __repr__(self):
-        return f"Symbol(var='{self.var}', type='{self.type}')"
+        return f"Symbol(var='{self.var}', type='{self.type}', arity={self.arity})"
     
 class SymTable:
     def __init__(self, prev=None):
@@ -58,5 +60,5 @@ class SymTable:
             
             # sobe para o escopo anterior
             current_scope = current_scope.prev
-
+            
         return None

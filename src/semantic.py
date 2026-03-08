@@ -98,45 +98,49 @@ class SemanticAnalyzer:
         return left_type
 
     def visit_FunctionDeclNode(self, node):
-        # Armazenamos o tipo de retorno no Símbolo da função para uso futuro
-        ret_type = getattr(node.return_type_node, 'type_name', 'int')
-        self.current_scope.insert(node.id_node.name, Symbol(node.id_node.name, ret_type))
+    # Armazenamos o tipo de retorno no Símbolo da função para uso futuro
+        func_name = node.id_node.name
+        ret_type = getattr(node.return_type_node, 'type_name', 'void')
+        num_params = len(node.parameters)
+        self.current_scope.insert(func_name, Symbol(func_name, ret_type, arity=num_params))
 
         old_scope = self.current_scope
         self.current_scope = SymTable(prev=old_scope)
-        
+
         for param in node.parameters:
-            p_node = param.Param if hasattr(param, 'Param') else param
-            p_name = p_node.id_node.name
-            p_type = getattr(p_node.type_node, 'type_name', 'int')
+            p_name = param.id_node.name
+            p_type = getattr(param.type_node, 'type_name', 'int')
             self.current_scope.insert(p_name, Symbol(p_name, p_type))
-        
+
         self.visit(node.body_node)
         self.current_scope = old_scope
         return ret_type
     
     #Verifica se a função chamada existe e visita seus argumentos
     def visit_FunctionCallNode(self, node):
-        symbol = self.current_scope.find(node.id_node.name)
+        func_name = node.id_node.name
+        symbol = self.current_scope.find(func_name)
+
         if symbol is None:
-            self.report_erros(f"Função '{node.id_node.name}' não declarada.")
+            self.report_erros(f"Função '{func_name}' não declarada.")
             return 'unknown'
-        
-        # Visita os argumentos 
-        self.visit(getattr(node, 'arguments', []))
-    
-        # RETORNA o tipo que estava salvo na tabela 
+
+        args_enviados = getattr(node, 'args', [])
+        if symbol.arity is not None and len(args_enviados) != symbol.arity:
+            self.report_erros(f"Chamada incorreta: '{func_name}' espera {symbol.arity} argumento(s), mas recebeu {len(args_enviados)}.")
+
+        for arg in args_enviados:
+            self.visit(arg)
+
         return symbol.type
 
     def visit_LiteralNode(self, node):
-        val = node.value
-        # Se for booleano ou a string 'true'/'false'
-        if isinstance(val, bool) or str(val).lower() in ['true', 'false']:
-            return 'bool'
-        # Se for dígito ou int puro
-        if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
-            return 'int'
-        return 'unknown'
+        # MUDANÇA: Melhorada a detecção de tipos literais
+        t = str(node.tag).upper()
+        if "INTEGER" in t: return "int"
+        if "REAL" in t: return "real"
+        if "BOOL" in t or "TRUE" in t or "FALSE" in t: return "bool"
+        return "unknown"
 
     def visit_StringLiteralNode(self, node):
         return 'string'
