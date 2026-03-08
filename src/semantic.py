@@ -135,7 +135,6 @@ class SemanticAnalyzer:
         return symbol.type
 
     def visit_LiteralNode(self, node):
-        # MUDANÇA: Melhorada a detecção de tipos literais
         t = str(node.tag).upper()
         if "INTEGER" in t: return "int"
         if "REAL" in t: return "real"
