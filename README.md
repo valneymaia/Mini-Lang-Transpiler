@@ -36,7 +36,7 @@ gcc tests/exemplo_simple.c -o tests/exemplo_simple.exe
 Para executar:
 
 ```bash
-./tests/exemplo_simple.exe
+.\tests\exemplo_simple.exe
 ```
 
 ## Observação
