@@ -1,0 +1,14 @@
+// Programa simples para testar a geração de C
+
+var x: int = 2;
+var y: int = 20;
+
+def soma(a: int, b: int): int {
+    return a + b;
+}
+
+def main(): int {
+    var resultado: int = soma(x, y);
+    print "Soma calculada";
+    return 0;
+}
