@@ -1,30 +1,64 @@
-import json
+import os
 import sys
-from parser import Parser
+from lexer import LexerError
+from parser import Parser, ParseError
 from semantic import SemanticAnalyzer
 from codegen import CCodeGenerator
 
 
-# Arquivo de entrada
-input_file = "tests/exemplo_loops.mini" if len(sys.argv) < 2 else sys.argv[1]
-output_file = input_file.replace(".mini", ".c")
+def main():
+    # Arquivo de entrada
+    input_file = "tests/exemplo2.mini" if len(sys.argv) < 2 else sys.argv[1]
+    output_file = input_file.replace(".mini", ".c")
 
-# Parse
-parser = Parser(input_file)
-ast = parser.start()
+    def cleanup_output():
+        # Evita arquivo C residual quando a transpilação falhar.
+        if os.path.exists(output_file):
+            os.remove(output_file)
 
-# Análise semântica
-analyzer = SemanticAnalyzer(ast)
-analyzer.cont_erros()
+    # Parse (inclui análise léxica e sintática)
+    try:
+        parser = Parser(input_file)
+        ast = parser.start()
+    except FileNotFoundError:
+        print(f"Erro: arquivo não encontrado: {input_file}")
+        cleanup_output()
+        return 1
+    except (LexerError, ParseError) as err:
+        print(err)
+        print("Transpilação interrompida: não foi possível gerar código C.")
+        cleanup_output()
+        return 1
 
-# Geração de código C
-generator = CCodeGenerator()
-c_code = generator.generate(ast)
+    if ast is None:
+        print("Erro: não foi possível construir a AST.")
+        print("Transpilação interrompida: não foi possível gerar código C.")
+        cleanup_output()
+        return 1
 
-# Salva código C em arquivo
-with open(output_file, "w", encoding="utf-8") as f:
-    f.write(c_code)
+    # Análise semântica
+    analyzer = SemanticAnalyzer(ast)
+    if not analyzer.analyze():
+        analyzer.cont_erros()
+        print("Transpilação interrompida: código Mini-Lang contém erros semânticos.")
+        cleanup_output()
+        return 1
 
-print(f"✓ Código C gerado com sucesso: {output_file}")
-print("\n--- Código gerado ---")
-print(c_code)
+    analyzer.cont_erros()
+
+    # Geração de código C (somente sem erros)
+    generator = CCodeGenerator()
+    c_code = generator.generate(ast)
+
+    # Salva código C em arquivo
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(c_code)
+
+    print(f"✓ Código C gerado com sucesso: {output_file}")
+    print("\n--- Código gerado ---")
+    print(c_code)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

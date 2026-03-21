@@ -7,6 +7,7 @@ class SemanticAnalyzer:
         self.ast = ast 
         self.current_scope = SymTable() # Escopo Global  
         self.errors = [] #Lista de erros para inserir todos os erros semnaticos encintrados pelo analisador semnatico 
+        self._analyzed = False
 
 
     #Função para registra mensagens de erro
@@ -152,17 +153,29 @@ class SemanticAnalyzer:
     Função para retornar todos os erros semânticos observados no documento de entrada 
     ou retorna que a analise semnatica não observou nenhum erro semantico
     """
-    def cont_erros(self):
+    def analyze(self):
+        if self._analyzed:
+            return len(self.errors) == 0
 
         if not self.ast:
-            return
+            self._analyzed = True
+            return False
 
         self.visit(self.ast)
+        self._analyzed = True
+        return len(self.errors) == 0
 
-        if self.errors:
+    def cont_erros(self):
+        ok = self.analyze()
+
+        if not self.ast:
+            print("Erro Semântico: AST vazia ou inválida.")
+            return
+
+        if not ok:
             print(f"Foram encontrados {len(self.errors)} erros semanticos:")
-            for err in enumerate(self.errors, 1):
-                print(err)
+            for idx, err in enumerate(self.errors, 1):
+                print(f"{idx}. {err}")
         else:
             print("\nAnálise semântica concluída com sucesso. (0 erros)")
     

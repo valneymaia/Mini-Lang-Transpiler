@@ -1,0 +1,14 @@
+var numero: int = 5;
+
+def fatorial(n: int): int {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * fatorial(n - 1);
+}
+
+def main(): int {
+    var resultado: int = fatorial(numero);
+    print "Fatorial calculado";
+    return 0;
+}
