@@ -19,10 +19,6 @@ class Parser:
         self.lookahead = self._lexer.scan()
         if self.lookahead is not None:
             return self.program()
-        
-        # Verifica se o último caractere é uma quebra de linha
-        # if self.lookahead != '\n':
-        #     raise ParseError()
 
 
     def program(self):

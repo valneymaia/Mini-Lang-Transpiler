@@ -26,8 +26,7 @@ class TAG(Enum):
     STRING = 277
 
 
-# Definimos uma exceção personalizada para evitar confusão 
-# com o "SyntaxError" nativo do Python
+# Exceção própria da análise léxica.
 class LexerError(Exception):
     def __init__(self, message="Erro na análise léxica"):
         self.message = message
@@ -42,10 +41,10 @@ class Lexer:
     def __init__(self, filename: str, print_tokens: bool = False):
         with open(filename, 'r', encoding='utf-8') as file:
             self._source = file.read()
-        self._line = 0 # numero da linha atual
-        self._pos = 0 # posicao atual na string do codigo fonte
-        self._token_table = {} # tabela de tokens
-        self._init_id_table() # inicializa tabela de identificadores
+        self._line = 1  # linha atual (base 1)
+        self._pos = 0  # posição atual no texto fonte
+        self._token_table = {}
+        self._init_id_table()
         self._print_tokens = print_tokens
 
 
@@ -76,8 +75,7 @@ class Lexer:
 
         
     def _get_next_char(self):
-        # Implementação do método para obter o próximo caractere do código fonte
-        """Simual o cin.get() lendo da string armazenada"""
+        """Lê o próximo caractere e avança o cursor."""
 
         if self._pos < len(self._source):
             ch = self._source[self._pos]
@@ -88,22 +86,18 @@ class Lexer:
         return ''
     
     def peek(self):
-        # Implementação do método para espiar o próximo caractere sem avançar a posição
+        """Olha o próximo caractere sem consumir."""
         if self._pos < len(self._source):
             return self._source[self._pos]
         return ''
         
     def scan(self):
-        # Implementação do método de varredura (scan) do lexer
-
-        # skip whitespace e comentários
+        # Ignora espaços e comentários.
         while self.peek() and (self.peek().isspace() or self.peek() == '/'):
-            # skip whitespace
             while self.peek() and self.peek().isspace():
                 self._get_next_char()
 
             leave = False
-            # ignora comentários
             while self.peek() == '/':
                 self._get_next_char()
                 if self.peek() == '/':
@@ -111,18 +105,18 @@ class Lexer:
                         self._get_next_char()
                     if self.peek() == '\n':
                         self._get_next_char()
-                        self._line += 1
                 elif self.peek() == '*':
+                    comment_start_line = self._line
                     self._get_next_char()
                     while True:
                         if not self.peek():
-                            return Token(0)  # EOF
+                            raise LexerError(f"Comentário de bloco não fechado na linha {comment_start_line}")
                         ch = self._get_next_char()
                         if ch == '*' and self.peek() == '/':
                             self._get_next_char()
                             break
                 else:
-                    # Não é um comentário, retorna o token '/'
+                    # Não era comentário, então '/' é operador.
                     self._pos -= 1
                     leave = True
                     break
@@ -131,7 +125,7 @@ class Lexer:
 
             
             
-        # Retorna números
+        # Números inteiros e reais.
         if self.peek() and self.peek().isdigit():
             num_str = ""
             dot = False
@@ -153,19 +147,19 @@ class Lexer:
             else:
                 raise LexerError(f"Número mal formatado na linha {self._line}")
                 
-        # Trata strings
+        # Literais de string.
         if self.peek() and self.peek() == '"':
-            self._get_next_char()  # consome as aspas de abertura
+            self._get_next_char()
             str_val = ""
             while self.peek() and self.peek().isprintable() and self.peek() != '"':
                 str_val += self._get_next_char()
             if self.peek() == '"':
-                self._get_next_char()  # consome as aspas de fechamento
+                self._get_next_char()
                 return Token(TAG.STRING, str_val)
             else:
                 raise LexerError(f"String não fechada na linha {self._line}")
 
-        # Trata identificadores e palavras reservadas
+        # Identificadores e palavras reservadas.
         if self.peek() and (self.peek().isalnum() or self.peek() == '_'):
             id_str = []
             while self.peek() and (self.peek().isalnum() or self.peek() == '_'):
@@ -180,7 +174,7 @@ class Lexer:
                 return token
             
         
-        # operadores
+        # Operadores e símbolos simples.
         ch = self.peek()
         if ch == '>' and self._pos + 1 < len(self._source) and self._source[self._pos + 1] == '=':
             self._get_next_char()
@@ -203,4 +197,4 @@ class Lexer:
                 self._get_next_char()
                 return Token(ch, ch)
             else:
-                return Token(None, "EOF")  # EOF
+                return Token(None, "EOF")

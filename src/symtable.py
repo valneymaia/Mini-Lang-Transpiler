@@ -1,6 +1,6 @@
 class Symbol:
     """
-    Estrutura para salvar o nome de uma variável e o tipo
+    Representa um símbolo da linguagem (variável ou função).
     """
     def __init__(self, var, type, arity=None):
         self.var = var
@@ -13,19 +13,17 @@ class Symbol:
 class SymTable:
     def __init__(self, prev=None):
         """
-        Construtor do SymTable.
-        Se prev for None, essa é uma tabela global (escopo mais externo)
-        Se 'prev' for passado, é uma nova tabela aninhada a ser criada 
-        dentro do escopo de 'prev'
+        Cria uma tabela de símbolos.
+        Se prev for None, estamos no escopo global.
+        Caso contrário, é um escopo aninhado.
         """
-        self.table = {} # tabela inicia vazia
+        self.table = {}
         self.prev = prev
 
     def insert(self, s: str, symb: Symbol):
         """
-        Função para inseir um símbolo na tabela atual
-        Retorna True se inseriu com sucesso, False se já
-         existia a entrada na tabela
+        Insere um símbolo no escopo atual.
+        Retorna False se o nome já existir neste escopo.
         
         :param self: Descrição
         :param s: Descrição
@@ -49,15 +47,14 @@ class SymTable:
         :return: Descrição
         :rtype: Any | None
         """
-        #começa a busca na tabela atual
+        # Busca primeiro no escopo atual.
         current_scope = self
 
-        # percorre as referÊncias para prev
+        # Se não achar, sobe para os escopos anteriores.
         while current_scope is not None:
             if s in current_scope.table:
                 return current_scope.table[s]
             
-            # sobe para o escopo anterior
             current_scope = current_scope.prev
             
         return None

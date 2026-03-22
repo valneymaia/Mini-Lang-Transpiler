@@ -7,16 +7,16 @@ from codegen import CCodeGenerator
 
 
 def main():
-    # Arquivo de entrada
+    # Se não vier argumento, usa um arquivo de exemplo.
     input_file = "tests/exemplo2.mini" if len(sys.argv) < 2 else sys.argv[1]
     output_file = input_file.replace(".mini", ".c")
 
     def cleanup_output():
-        # Evita arquivo C residual quando a transpilação falhar.
+        # Remove o .c se a execução falhar no meio.
         if os.path.exists(output_file):
             os.remove(output_file)
 
-    # Parse (inclui análise léxica e sintática)
+    # Parsing: análise léxica + sintática.
     try:
         parser = Parser(input_file)
         ast = parser.start()
@@ -36,7 +36,7 @@ def main():
         cleanup_output()
         return 1
 
-    # Análise semântica
+    # Análise semântica.
     analyzer = SemanticAnalyzer(ast)
     if not analyzer.analyze():
         analyzer.cont_erros()
@@ -46,11 +46,11 @@ def main():
 
     analyzer.cont_erros()
 
-    # Geração de código C (somente sem erros)
+    # Geração de código C (só roda sem erros anteriores).
     generator = CCodeGenerator()
     c_code = generator.generate(ast)
 
-    # Salva código C em arquivo
+    # Grava o código C no disco.
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(c_code)
 
