@@ -1,7 +1,13 @@
 from ast_nodes import *
 
 class CCodeGenerator:
-    """Gerador de código C a partir da AST."""
+    """
+    Gera código C a partir da AST da Mini-Lang.
+
+    A geração separa declarações globais de comandos executáveis.
+    Comandos globais são movidos para dentro da main para manter
+    o C final válido.
+    """
     
     def __init__(self):
         self.code = []
@@ -25,17 +31,24 @@ class CCodeGenerator:
             self.code.append("")
     
     def get_c_type(self, type_name):
-        """Converte tipos Mini-Lang para tipos C."""
+        """
+        Converte tipos da Mini-Lang para tipos em C.
+        Tipos fora do mapa caem em int por padrão.
+        """
         type_map = {
             "int": "int",
+            "real": "float",
             "bool": "int",
-            "float": "float",
             "string": "char*"
         }
         return type_map.get(type_name, "int")
     
     def generate(self, ast_node):
-        """Gera código C a partir da AST."""
+        """
+          Gera o código C completo do programa.
+          Primeiro classifica os nós e depois emite em etapas:
+          forward declarations, variáveis globais, funções e main.
+        """
         self.code = []
         self.indent_level = 0
         
@@ -45,12 +58,29 @@ class CCodeGenerator:
         self.emit("")
         
         if isinstance(ast_node, ProgramNode):
-            # Primeira passagem: coleta declarações de função (para forward declarations)
+            # 1) Classificação dos statements do programa.
+            var_declarations = []
+            function_declarations = []
+            executables = []
+            main_function = None
+            
             for stmt in ast_node.statements:
                 if isinstance(stmt, FunctionDeclNode):
                     self.collect_function(stmt)
+
+                    if stmt.id_node.name == "main":
+                        main_function = stmt
+                    else:
+                        function_declarations.append(stmt)
+                        
+                elif isinstance(stmt, VarDeclNode):
+                    var_declarations.append(stmt)
+                    
+                else:
+                    executables.append(stmt)
+
+            # 2) Forward declarations.
             
-            # Emite forward declarations
             for func_name, (params, return_type) in self.functions.items():
                 param_decls = ", ".join(
                     f"{self.get_c_type(p.type_node.type_name)} {p.id_node.name}"
@@ -61,18 +91,33 @@ class CCodeGenerator:
             if self.functions:
                 self.emit("")
             
-            # Segunda passagem: gera código completo
-            for stmt in ast_node.statements:
-                self.generate_statement(stmt)
+            # 3) Variáveis globais.
+            
+            for stmt in var_declarations:
+                self.generate_var_decl(stmt)
                 self.emit("")
             
-            # Função main se não existir
-            if "main" not in self.functions:
-                self.emit("int main() {")
-                self.indent()
-                self.emit("return 0;")
-                self.dedent()
-                self.emit("}")
+            # 4) Funções (exceto main).
+            
+            for stmt in function_declarations:
+                self.generate_function(stmt)
+                self.emit("")
+            
+            # 5) Main: usa a do usuário ou cria uma.
+            
+            if executables or "main" not in self.functions:
+                if main_function:
+                    self._generate_main_with_executables(main_function, executables)
+                else:
+                    self.emit("int main() {")
+                    self.indent()
+                    for stmt in executables:
+                        self.generate_statement(stmt)
+                    self.emit("return 0;")
+                    self.dedent()
+                    self.emit("}")
+            else:
+                self.generate_function(main_function)
         
         return "\n".join(self.code)
     
@@ -82,6 +127,39 @@ class CCodeGenerator:
             func_name = node.id_node.name
             return_type = node.return_type_node.type_name
             self.functions[func_name] = (node.parameters, return_type)
+    
+    def _generate_main_with_executables(self, main_node, executables):
+        """
+        Monta a main usando primeiro os comandos globais executáveis
+        e depois o corpo original da função main do usuário.
+        """
+        return_type = self.get_c_type(main_node.return_type_node.type_name)
+        func_name = main_node.id_node.name
+        
+        params = []
+        for param in main_node.parameters:
+            param_type = self.get_c_type(param.type_node.type_name)
+            param_name = param.id_node.name
+            params.append(f"{param_type} {param_name}")
+        
+        param_str = ", ".join(params) if params else "void"
+
+        self.emit(f"{return_type} {func_name}({param_str}) {{")
+        self.indent()
+
+        # Comandos globais primeiro.
+        for stmt in executables:
+            self.generate_statement(stmt)
+
+        # Depois vem o corpo da main original.
+        if isinstance(main_node.body_node, BlockNode):
+            for stmt in main_node.body_node.statements:
+                self.generate_statement(stmt)
+        else:
+            self.generate_statement(main_node.body_node)
+
+        self.dedent()
+        self.emit("}")
     
     def generate_statement(self, stmt):
         """Gera código para um statement."""
@@ -198,7 +276,7 @@ class CCodeGenerator:
         """Gera print (usa printf em C)."""
         if isinstance(node.string_node, StringLiteralNode):
             string_val = node.string_node.value
-            # Escapa caracteres especiais para C
+            # Escapa aspas para manter string válida em C.
             string_val = string_val.replace('"', '\\"')
             self.emit(f'printf("%s\\n", "{string_val}");')
         else:
@@ -213,9 +291,9 @@ class CCodeGenerator:
     def generate_expression(self, expr):
         """Gera expressão."""
         if isinstance(expr, LiteralNode):
-            if expr.tag.name == "BOOL":
-                # Mini-Lang usa true/false, C usa 1/0
-                return "1" if expr.value == "true" else "0"
+            if expr.tag.name in ("BOOL", "TRUE", "FALSE"):
+                # Em C, bool literal vira 1/0.
+                return "1" if str(expr.value).lower() == "true" else "0"
             return str(expr.value)
         
         elif isinstance(expr, StringLiteralNode):
